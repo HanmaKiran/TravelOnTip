@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="travelontipFlow" doc:id="9ac0ee11-47c1-4bd5-a5e1-7fb813a5f671" >
+		<http:listener doc:name="Listener" doc:id="ff7603a9-b83e-4c7d-8646-8bd7e6012a19" config-ref="HTTP_Listener_config" path="${http.listner.path}">
+			<http:error-response statusCode="#[vars.statuscode as Number]" >
+				<http:body ><![CDATA[#[vars.errorMsg default "Critical Error"]]]></http:body>
+			</http:error-response>
+		</http:listener>
+		<ee:transform doc:name="Transform Message" doc:id="5eca8259-a9bb-4825-a7b4-c7972f92b886">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="serviceType"><![CDATA[%dw 2.0
+output application/java
+---
+attributes.uriParams.serviceType]]></ee:set-variable>
+				<ee:set-variable variableName="transactionId" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.headers.transactionId]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="0c51f028-be73-4caf-a816-15707ddf1877" message="Request received for TravelOnTip, TransactionId #[vars.transactionId]"/>
+		<choice doc:name="Choice" doc:id="4c7f3ee8-6c5f-453d-98b1-96a33bda1373" >
+			<when expression='#[vars.serviceType == "routes"]'>
+				<logger level="INFO" doc:name="Logger" doc:id="d2e7309d-481b-4552-b2f7-f113c79bc4e8" message="Routes Flow Called for TravelOnTip, TransactionId #[vars.transactionId]"/>
+				<flow-ref doc:name="Flow Reference" doc:id="2952b4be-0177-432f-9271-11e6241486c0" name="FastGo-getRouteFlow"/>
+			</when>
+			<when expression='#[vars.serviceType == "schedules"]'>
+				<logger level="INFO" doc:name="Logger" doc:id="80b05064-bf57-47e1-a3d7-6c73e2337f1a" message="Schedules Flow Called for TravelOnTip, TransactionId #[vars.transactionId]"/>
+				<flow-ref doc:name="Flow Reference" doc:id="f8493e21-33fc-446a-899d-d195de5680fa" name="FastGo-getScheduleFlow"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="80f81a09-b3f0-4750-8606-9bf8b7421321" message="URI Parameter is wrong for TravelOnTip, TransactionId #[vars.transactionId]"/>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="25349615-542c-4de5-add9-309bd1dca7dc" message="Response Sent for TravelOnTip, TransactionId #[vars.transactionId]"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="8e6f57ce-34c2-4fe7-9fa3-9810f292954d" >
+				<logger level="INFO" doc:name="Logger" doc:id="4f4aac34-9552-4270-8d4f-db8c5a6cee31" message="Error Occured for TravelOnTip, TransactionId #[attributes.headers.transactionId], reason #[error.errorMessage], type#[error.errorType]"/>
+				<ee:transform doc:name="Transform Message" doc:id="e79d924b-1c1b-4507-9038-919770c69510" >
+					<ee:message >
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="errorMsg" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	" ErrorCode " : " XE1823 " ,
+	" ErrorMessage " : " Error in TravelOnTrip System"
+}]]></ee:set-variable>
+						<ee:set-variable variableName="statuscode" ><![CDATA[%dw 2.0
+output application/json
+---
+500]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
